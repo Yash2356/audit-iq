@@ -5,6 +5,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Audit IQ</title>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.10.377/pdf.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
   <!-- Linking Google Fonts For Icons -->
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@24,400,0,0" />
   <link rel="stylesheet" href="style.css">
@@ -48,7 +50,8 @@
       </div>
       <div class="action-buttons">
         <label for="file-upload" class="icon material-symbols-rounded" id="upload-file-button">upload</label>
-        <input type="file" id="file-upload" accept=".pdf,.doc,.docx" style="display: none;">
+        <input type="file" id="file-upload" accept=".pdf,.doc,.docx,.txt" style="display: none;">
+        <button id="download-insights" class="icon material-symbols-rounded">download</button>
         <span id="theme-toggle-button" class="icon material-symbols-rounded">light_mode</span>
         <span id="delete-chat-button" class="icon material-symbols-rounded">delete</span>
       </div>
