@@ -4,6 +4,7 @@ const suggestions = document.querySelectorAll(".suggestion");
 const toggleThemeButton = document.querySelector("#theme-toggle-button");
 const deleteChatButton = document.querySelector("#delete-chat-button");
 const fileInput = document.querySelector("#file-upload");
+const downloadButton = document.querySelector("#download-insights");
 
 let userMessage = null;
 let pdfText = ''; // Store the extracted PDF text globally
@@ -89,16 +90,70 @@ const extractTextFromPDF = async (file) => {
   });
 };
 
+// Function to extract text from .docx files
+const extractTextFromDOCX = async (file) => {
+  const reader = new FileReader();
+
+  return new Promise((resolve, reject) => {
+    reader.onload = async () => {
+      try {
+        const zip = new JSZip();
+        const doc = await zip.loadAsync(reader.result);
+        const text = await doc.file("word/document.xml").async("text");
+        const parser = new DOMParser();
+        const xmlDoc = parser.parseFromString(text, "application/xml");
+        const paragraphs = Array.from(xmlDoc.getElementsByTagName("w:t"))
+          .map(node => node.textContent)
+          .join('\n');
+
+        resolve(paragraphs);
+      } catch (error) {
+        reject(error);
+      }
+    };
+
+    reader.onerror = () => reject(new Error("Failed to read the DOCX file"));
+
+    reader.readAsArrayBuffer(file);
+  });
+};
+
+// Function to extract text from .txt files
+const extractTextFromTXT = async (file) => {
+  const reader = new FileReader();
+
+  return new Promise((resolve, reject) => {
+    reader.onload = () => {
+      const text = reader.result;
+      resolve(text);
+    };
+
+    reader.onerror = () => reject(new Error("Failed to read the TXT file"));
+
+    reader.readAsText(file);
+  });
+};
+
 // File upload event listener
 fileInput.addEventListener('change', async (event) => {
   const file = event.target.files[0];
   if (file) {
     try {
-      pdfText = await extractTextFromPDF(file);
-      isPDFUploaded = true; // Set the flag to true once a PDF is uploaded
-      alert('PDF uploaded and text extracted successfully!');
+      const fileType = file.type;
+      if (fileType === "application/pdf") {
+        pdfText = await extractTextFromPDF(file);
+      } else if (fileType === "application/vnd.openxmlformats-officedocument.wordprocessingml.document") {
+        pdfText = await extractTextFromDOCX(file);
+      } else if (fileType === "text/plain") {
+        pdfText = await extractTextFromTXT(file);
+      } else {
+        alert("Unsupported file type. Please upload a PDF, DOCX, or TXT file.");
+        return;
+      }
+      isPDFUploaded = true; // Set the flag to true once a file is uploaded
+      alert('File uploaded and text extracted successfully!');
     } catch (error) {
-      console.error('Error extracting PDF text:', error);
+      console.error('Error extracting file text:', error);
       pdfText = '';
       isPDFUploaded = false; // Reset flag if extraction fails
     }
@@ -140,7 +195,9 @@ const generateAPIResponse = async (incomingMessageDiv) => {
     const data = await response.json();
     if (!response.ok) throw new Error(data.error.message);
 
-    const apiResponse = data?.candidates[0].content.parts[0].text.replace(/\*\*(.*?)\*\*/g, '$1');
+    const apiResponse = data?.candidates[0].content.parts[0].text
+  .replace(/\*\*(.*?)\*\*/g, '$1')  // Existing line to remove asterisks
+  .replace(/\*/g, '•');  // New line to replace * with bullet points
     showTypingEffect(apiResponse, textElement, incomingMessageDiv);
   } catch (error) {
     isResponseGenerating = false;
@@ -149,6 +206,32 @@ const generateAPIResponse = async (incomingMessageDiv) => {
   } finally {
     incomingMessageDiv.classList.remove("loading");
   }
+};
+
+// Function to download insights as PDF
+const downloadInsightsAsPDF = () => {
+  const { jsPDF } = window.jspdf; // Accessing jsPDF from the window object
+  const doc = new jsPDF();
+  
+  // Set margins
+  const margin = 10;
+  const pageWidth = doc.internal.pageSize.getWidth();
+  
+  // Set a reasonable font size
+  const fontSize = 12;
+  doc.setFontSize(fontSize);
+
+  // Get chat content for the PDF
+  const insightsContent = chatContainer.innerText;
+
+  // Split content into multiple lines if necessary
+  const lines = doc.splitTextToSize(insightsContent, pageWidth - margin * 2); // Subtract margins from the width
+
+  // Add lines to the PDF with margins
+  doc.text(lines, margin, margin); // Apply margins when adding text
+
+  // Save the PDF file
+  doc.save("insights.pdf"); // Save the PDF file
 };
 
 // Show a loading animation while waiting for the API response
@@ -215,6 +298,9 @@ deleteChatButton.addEventListener("click", () => {
     loadDataFromLocalstorage();
   }
 });
+
+// Event listener for download button
+downloadButton.addEventListener("click", downloadInsightsAsPDF);
 
 // Set userMessage and handle outgoing chat when a suggestion is clicked
 suggestions.forEach(suggestion => {
